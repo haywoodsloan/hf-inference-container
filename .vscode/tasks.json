@@ -7,7 +7,7 @@
       "command": "host start",
       "problemMatcher": "$func-python-watch",
       "isBackground": true,
-      "dependsOn": "pip install (functions)"
+      "dependsOn": ["pip install (functions)", "func: stop"]
     },
     {
       "label": "pip install (functions)",
@@ -20,6 +20,15 @@
       },
       "linux": {
         "command": "${config:azureFunctions.pythonVenv}/bin/python -m pip install -r requirements.txt"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "func: stop",
+      "type": "shell",
+      "windows": {
+        "command": "taskkill /f /im func.exe || echo \"No existing func instance\"",
+        "problemMatcher": []
       },
       "problemMatcher": []
     }
