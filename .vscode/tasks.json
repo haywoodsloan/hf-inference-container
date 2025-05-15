@@ -27,7 +27,7 @@
       "label": "func: stop",
       "type": "shell",
       "windows": {
-        "command": "taskkill /f /im func.exe || echo \"No existing func instance\"",
+        "command": "taskkill /f /im func.exe || cmd /c \"exit /b 0\"",
         "problemMatcher": []
       },
       "problemMatcher": []
