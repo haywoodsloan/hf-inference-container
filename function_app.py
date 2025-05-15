@@ -9,7 +9,7 @@ import os
 task_type = os.environ.get("TASK_TYPE")
 model_name = os.environ.get("MODEL_NAME")
 
-inference = pipeline(task=task_type, model=model_name, use_fast=True)
+inference = None
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
 
@@ -26,8 +26,19 @@ def invoke(req: func.HttpRequest) -> func.HttpResponse:
         input = base64.b64encode(req.get_body()).decode("ascii")
         logging.info("Using binary input as a base64 string for model")
 
+    global inference
+    if inference is None:
+        try: 
+            logging.info("Loading model")
+            inference = pipeline(task=task_type, model=model_name, use_fast=True)
+            logging.info("Model loaded")
+        except Exception as e:
+            logging.info(f"Model loading failed: ${e}")
+            return func.HttpResponse(f"[MODEL LOADING FAILED] ${e}", status_code=500)
+
     try:
         output = inference(input)
         return func.HttpResponse(json.dumps(output), status_code=200)
     except Exception as e:
+        logging.info(f"Inference failed: ${e}")
         return func.HttpResponse(f"{e}", status_code=500)
