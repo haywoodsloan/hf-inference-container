@@ -1,10 +1,10 @@
-from transformers import pipeline
-
 import json
 import base64
 import azure.functions as func
 import logging
 import os
+
+from transformers import pipeline
 
 task_type = os.environ.get("TASK_TYPE")
 model_name = os.environ.get("MODEL_NAME")
@@ -28,7 +28,7 @@ def invoke(req: func.HttpRequest) -> func.HttpResponse:
 
     global inference
     if inference is None:
-        try: 
+        try:
             logging.info("Loading model")
             inference = pipeline(task=task_type, model=model_name, use_fast=True)
             logging.info("Model loaded")
