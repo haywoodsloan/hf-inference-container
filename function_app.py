@@ -13,7 +13,7 @@ inference = pipeline(task=task_type, model=model_name, use_fast=True)
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
 
-@app.route(route="invoke")
+@app.route(route="invoke", methods=["POST"])
 def invoke(req: func.HttpRequest) -> func.HttpResponse:
     logging.info(
         f"Invoking Transformer pipeline, task: {task_type}, model: {model_name}"
