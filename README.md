@@ -27,7 +27,7 @@
 
 (Recommended) Activate your virtual environment
 
-User `pip install -r .\requirements.txt` to install all dependencies
+Use `pip install -r .\requirements.txt` to install all dependencies
 
 ## Usage
 
