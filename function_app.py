@@ -41,4 +41,4 @@ def invoke(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps(output), status_code=200)
     except Exception as e:
         logging.info(f"Inference failed: ${e}")
-        return func.HttpResponse(f"{e}", status_code=500)
+        return func.HttpResponse(f"[INFERENCE FAILED] {e}", status_code=500)
