@@ -35,6 +35,8 @@ def invoke(req: func.HttpRequest) -> func.HttpResponse:
         except Exception as e:
             logging.info(f"Model loading failed: ${e}")
             return func.HttpResponse(f"[MODEL LOADING FAILED]: ${e}", status_code=500)
+    else:
+        logging.info("Using cached model")
 
     try:
         output = inference(input)
