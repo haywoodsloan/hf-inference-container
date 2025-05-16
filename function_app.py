@@ -34,11 +34,11 @@ def invoke(req: func.HttpRequest) -> func.HttpResponse:
             logging.info("Model loaded")
         except Exception as e:
             logging.info(f"Model loading failed: ${e}")
-            return func.HttpResponse(f"[MODEL LOADING FAILED] ${e}", status_code=500)
+            return func.HttpResponse(f"[MODEL LOADING FAILED]: ${e}", status_code=500)
 
     try:
         output = inference(input)
         return func.HttpResponse(json.dumps(output), status_code=200)
     except Exception as e:
         logging.info(f"Inference failed: ${e}")
-        return func.HttpResponse(f"[INFERENCE FAILED] {e}", status_code=500)
+        return func.HttpResponse(f"[INFERENCE FAILED]: {e}", status_code=500)
