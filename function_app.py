@@ -30,7 +30,7 @@ def invoke(req: func.HttpRequest) -> func.HttpResponse:
     if inference is None:
         try:
             logging.info("Loading model")
-            inference = pipeline(task=task_type, model=model_name, use_fast=True)
+            inference = pipeline(task=task_type, model=model_name, use_fast=True, device="cpu")
             logging.info("Model loaded")
         except Exception as e:
             logging.info(f"Model loading failed: ${e}")
