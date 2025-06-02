@@ -13,8 +13,11 @@ inference = None
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
 
-@app.route(route="invoke", methods=["POST"])
+@app.route(route="invoke", methods=["POST", "OPTIONS"])
 def invoke(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return func.HttpResponse(status_code=200)
+
     logging.info(
         f"Invoking Transformer pipeline, task: {task_type}, model: {model_name}"
     )
