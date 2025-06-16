@@ -4,7 +4,7 @@
 
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-azure-functions
+fastapi[standard]
 accelerate
 transformers[torch]
 pillow
