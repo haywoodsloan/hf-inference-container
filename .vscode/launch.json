@@ -9,13 +9,11 @@
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
-      "cwd": "${workspaceFolder}/src",
       "args": ["main:app", "--reload"],
       "jinja": true,
       "env": {
         "MODEL_NAME": "haywoodsloan/ai-image-detector-dev-deploy",
         "TASK_TYPE": "image-classification",
-        "API_KEY": "LocalDev",
         "HF_HOME": "C:\\HF_CACHE"
       }
     }
