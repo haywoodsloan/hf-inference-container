@@ -2,11 +2,11 @@ name: hf-inference
 
 services:
   api:
+    image: haywoodsloan/hf-inference
     build:
       dockerfile: Dockerfile
     environment:
       - MODEL_NAME=haywoodsloan/ai-image-detector-dev-deploy
       - TASK_TYPE=image-classification
-      - API_KEY=LocalDev
     ports:
       - 8000:80
