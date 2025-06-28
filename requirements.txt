@@ -6,6 +6,7 @@
 
 azure-monitor-opentelemetry
 fastapi[standard]
-accelerate
+optimum
+optimum[onnxruntime]
 transformers[torch]
 pillow

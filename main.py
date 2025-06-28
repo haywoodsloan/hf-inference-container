@@ -2,9 +2,9 @@ import base64
 import logging
 import os
 
-from transformers import pipeline
+from optimum.pipelines import pipeline
 from azure.monitor.opentelemetry import configure_azure_monitor
-from fastapi import FastAPI, Response, Request, status, Body, HTTPException
+from fastapi import FastAPI, Response, status, Body
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.exception_handlers import http_exception_handler
 
@@ -23,7 +23,7 @@ except Exception as e:
 # Preload the model
 try:
     log.info(f"Loading inference model, task: {task_type}, model: {model_name}")
-    inference = pipeline(task=task_type, model=model_name, device_map="auto")
+    inference = pipeline(task=task_type, model=model_name, accelerator="ort")
     log.info(f"Model loaded successfully")
 except Exception as e:
     log.error(f"Loading model failed: ${e}")
