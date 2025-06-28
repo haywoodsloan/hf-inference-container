@@ -4,7 +4,8 @@ import os
 
 from optimum.pipelines import pipeline
 from azure.monitor.opentelemetry import configure_azure_monitor
-from fastapi import FastAPI, Response, status, Body
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from fastapi import FastAPI, Response, status, Body, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.exception_handlers import http_exception_handler
 
@@ -55,3 +56,6 @@ def invoke_post(body=Body()):
     except Exception as e:
         log.warning(f"Inference failed: ${e}")
         return PlainTextResponse(f"[INFERENCE FAILED]: {e}", status_code=500)
+
+
+FastAPIInstrumentor.instrument_app(app)

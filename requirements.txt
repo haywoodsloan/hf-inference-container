@@ -5,6 +5,7 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 
 azure-monitor-opentelemetry
+opentelemetry-instrumentation-fastapi
 fastapi[standard]
 optimum
 optimum[onnxruntime]
