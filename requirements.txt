@@ -6,8 +6,8 @@
 
 azure-monitor-opentelemetry
 opentelemetry-instrumentation-fastapi
-fastapi[standard]
 optimum
 optimum[onnxruntime]
+fastapi[standard]
 transformers[torch]
 pillow
