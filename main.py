@@ -2,14 +2,20 @@ import base64
 import logging
 import os
 
+from optimum.onnxruntime import ORTModelForImageClassification, ORTQuantizer
+from optimum.onnxruntime.configuration import (
+    QuantizationConfig,
+    QuantFormat,
+    QuantizationMode,
+    QuantType,
+)
+from transformers import AutoImageProcessor
 from optimum.pipelines import pipeline
 from azure.monitor.opentelemetry import configure_azure_monitor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from fastapi import FastAPI, Response, status, Body, Request
+from fastapi import FastAPI, Response, status, Body
 from fastapi.responses import JSONResponse, PlainTextResponse
-from fastapi.exception_handlers import http_exception_handler
 
-task_type = os.environ.get("TASK_TYPE")
 model_name = os.environ.get("MODEL_NAME")
 
 logging.basicConfig(level=logging.INFO)
@@ -23,8 +29,30 @@ except Exception as e:
 
 # Preload the model
 try:
-    log.info(f"Loading inference model, task: {task_type}, model: {model_name}")
-    inference = pipeline(task=task_type, model=model_name, accelerator="ort")
+    log.info(f"Loading inference model, model: {model_name}")
+    model = ORTModelForImageClassification.from_pretrained(
+        model_id=model_name, export=True
+    )
+
+    optimizer = ORTQuantizer.from_pretrained(model)
+    config = QuantizationConfig(
+        is_static=False,
+        format=QuantFormat.QOperator,
+        mode=QuantizationMode.IntegerOps,
+        weights_dtype=QuantType.QInt8,
+        nodes_to_exclude=["/swinv2/embeddings/patch_embeddings/projection/Conv"],
+    )
+
+    optimizer.quantize(save_dir=".optimized", quantization_config=config)
+    model = ORTModelForImageClassification.from_pretrained(".optimized")
+
+    inference = pipeline(
+        task="image-classification",
+        model=model,
+        image_processor=AutoImageProcessor.from_pretrained(model_name),
+        accelerator="ort",
+    )
+
     log.info(f"Model loaded successfully")
 except Exception as e:
     log.error(f"Loading model failed: ${e}")
@@ -41,14 +69,8 @@ def invoke_options():
 
 @app.post("/invoke")
 def invoke_post(body=Body()):
-    log.info(f"Invoking transformer pipeline, task: {task_type}, model: {model_name}")
-
-    if isinstance(body, bytes):
-        input = base64.b64encode(body).decode("ascii")
-        log.info("Using binary input as a base64 string for model")
-    else:
-        input = body
-        log.info("Using JSON input for model")
+    log.info(f"Invoking transformer pipeline, model: {model_name}")
+    input = base64.b64encode(body).decode("ascii")
 
     try:
         output = inference(input)

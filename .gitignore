@@ -174,3 +174,5 @@ cython_debug/
 .pypirc
 
 .python_packages
+
+.optimized
