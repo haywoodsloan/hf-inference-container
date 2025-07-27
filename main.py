@@ -43,8 +43,18 @@ try:
         nodes_to_exclude=["/swinv2/embeddings/patch_embeddings/projection/Conv"],
     )
 
-    optimizer.quantize(save_dir=".optimized", quantization_config=config)
-    model = ORTModelForImageClassification.from_pretrained(".optimized")
+    optimizer.quantize(save_dir=".optimized/1", quantization_config=config)
+    optimizer = ORTQuantizer.from_pretrained(".optimized/1")
+    config = QuantizationConfig(
+        is_static=False,
+        format=QuantFormat.QOperator,
+        mode=QuantizationMode.IntegerOps,
+        weights_dtype=QuantType.QUInt8,
+        nodes_to_quantize=["/swinv2/embeddings/patch_embeddings/projection/Conv"]
+    )
+
+    optimizer.quantize(save_dir=".optimized/2", quantization_config=config)
+    model = ORTModelForImageClassification.from_pretrained(".optimized/2")
 
     inference = pipeline(
         task="image-classification",
