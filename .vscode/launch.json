@@ -13,7 +13,6 @@
       "jinja": true,
       "env": {
         "MODEL_NAME": "haywoodsloan/ai-image-detector-dev-deploy",
-        "TASK_TYPE": "image-classification",
         "HF_HOME": "C:\\HF_CACHE"
       }
     }
