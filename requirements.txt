@@ -11,3 +11,4 @@ optimum[onnxruntime]
 fastapi[standard]
 transformers[torch]
 pillow
+stopit

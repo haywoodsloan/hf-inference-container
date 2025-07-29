@@ -15,7 +15,9 @@ from azure.monitor.opentelemetry import configure_azure_monitor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from fastapi import FastAPI, Response, status, Body
 from fastapi.responses import JSONResponse, PlainTextResponse
+from stopit import threading_timeoutable
 
+max_time = 5
 model_name = os.environ.get("MODEL_NAME")
 
 logging.basicConfig(level=logging.INFO)
@@ -69,11 +71,16 @@ try:
 
     log.info(f"Model loaded successfully")
 except Exception as e:
-    log.error(f"Loading model failed: ${e}")
+    log.error(f"Loading model failed: {e}")
     raise e
 
 # Initialize the server
 app = FastAPI()
+
+
+@threading_timeoutable()
+def infer_with_timeout(input):
+    return inference(input)
 
 
 @app.options("/invoke")
@@ -87,10 +94,12 @@ async def invoke_post(body=Body()):
     input = base64.b64encode(body).decode("ascii")
 
     try:
-        output = inference(input)
+        output = infer_with_timeout(input, timeout=max_time)
+        if output is None:
+            raise TimeoutError("Timed out")
         return JSONResponse(output, status_code=200)
     except Exception as e:
-        log.warning(f"Inference failed: ${e}")
+        log.warning(f"Inference failed: {e}")
         return PlainTextResponse(f"[INFERENCE FAILED]: {e}", status_code=500)
 
 
