@@ -84,12 +84,12 @@ def infer_with_timeout(input):
 
 
 @app.options("/invoke")
-async def invoke_options():
+def invoke_options():
     return Response(status_code=status.HTTP_200_OK)
 
 
 @app.post("/invoke")
-async def invoke_post(body=Body()):
+def invoke_post(body=Body()):
     log.info(f"Invoking transformer pipeline, model: {model_name}")
     input = base64.b64encode(body).decode("ascii")
 
