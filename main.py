@@ -50,7 +50,7 @@ try:
         format=QuantFormat.QOperator,
         mode=QuantizationMode.IntegerOps,
         weights_dtype=QuantType.QUInt8,
-        nodes_to_quantize=["/swinv2/embeddings/patch_embeddings/projection/Conv"]
+        nodes_to_quantize=["/swinv2/embeddings/patch_embeddings/projection/Conv"],
     )
 
     optimizer.quantize(save_dir=".optimized/2", quantization_config=config)
@@ -62,6 +62,10 @@ try:
         image_processor=AutoImageProcessor.from_pretrained(model_name),
         accelerator="ort",
     )
+
+    model = None
+    optimizer = None
+    config = None
 
     log.info(f"Model loaded successfully")
 except Exception as e:
