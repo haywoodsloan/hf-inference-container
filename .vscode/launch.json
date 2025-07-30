@@ -13,7 +13,8 @@
       "jinja": true,
       "env": {
         "MODEL_NAME": "haywoodsloan/ai-image-detector-dev-deploy",
-        "HF_HOME": "C:\\HF_CACHE"
+        "HF_HOME": "C:\\HF_CACHE",
+        "BATCH_SIZE": "8"
       }
     }
   ]

@@ -1,6 +1,7 @@
 import base64
 import logging
 import os
+import asyncio
 
 from optimum.onnxruntime import ORTModelForImageClassification, ORTQuantizer
 from optimum.onnxruntime.configuration import (
@@ -15,10 +16,9 @@ from azure.monitor.opentelemetry import configure_azure_monitor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from fastapi import FastAPI, Response, status, Body
 from fastapi.responses import JSONResponse, PlainTextResponse
-from stopit import threading_timeoutable
 
-max_time = 5
 model_name = os.environ.get("MODEL_NAME")
+batch_size = int(os.environ.get("BATCH_SIZE"))
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("app")
@@ -77,10 +77,9 @@ except Exception as e:
 # Initialize the server
 app = FastAPI()
 
-
-@threading_timeoutable()
-def infer_with_timeout(input):
-    return inference(input)
+# Setup for batch processing
+loop = asyncio.get_event_loop()
+queue = asyncio.Queue()
 
 
 @app.options("/invoke")
@@ -94,13 +93,33 @@ async def invoke_post(body=Body()):
     input = base64.b64encode(body).decode("ascii")
 
     try:
-        output = infer_with_timeout(input, timeout=max_time)
-        if output is None:
-            raise TimeoutError("Timed out")
-        return JSONResponse(output, status_code=200)
+        future = loop.create_future()
+        queueInvoke(input, future)
+        return JSONResponse(await future, status_code=200)
     except Exception as e:
         log.warning(f"Inference failed: {e}")
         return PlainTextResponse(f"[INFERENCE FAILED]: {e}", status_code=500)
 
 
+def queueInvoke(input, future):
+    queue.put_nowait([input, future])
+    log.info(f"Queued invocation, size: {queue.qsize()} ")
+
+
+async def processQueue():
+    while True:
+        head = await queue.get()
+
+        batch = [queue.get_nowait() for _ in range(min(batch_size - 1, queue.qsize()))]
+        batch.append(head)
+
+        inputs = [item[0] for item in batch]
+        log.info(f"Invoking batch inference, size: {len(inputs)}")
+        outputs = inference(inputs, batch_size=len(inputs))
+
+        for idx, item in enumerate(batch):
+            item[1].set_result(outputs[idx])
+
+
 FastAPIInstrumentor.instrument_app(app)
+loop.create_task(processQueue())
