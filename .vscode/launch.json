@@ -14,7 +14,8 @@
       "env": {
         "MODEL_NAME": "haywoodsloan/ai-image-detector-dev-deploy",
         "HF_HOME": "C:\\HF_CACHE",
-        "BATCH_SIZE": "8"
+        "BATCH_SIZE": "8",
+        "MAX_QUEUE": "40"
       }
     }
   ]

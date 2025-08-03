@@ -19,6 +19,8 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 
 model_name = os.environ.get("MODEL_NAME")
 batch_size = int(os.environ.get("BATCH_SIZE"))
+max_queue = int(os.environ.get("MAX_QUEUE"))
+timeout = 30
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("app")
@@ -79,7 +81,9 @@ app = FastAPI()
 
 # Setup for batch processing
 loop = asyncio.get_event_loop()
-queue = asyncio.Queue()
+event = asyncio.Event()
+lock = asyncio.Lock()
+queue = []
 
 
 @app.options("/invoke")
@@ -89,36 +93,65 @@ async def invoke_options():
 
 @app.post("/invoke")
 async def invoke_post(body=Body()):
+    if len(queue) >= max_queue:
+        return PlainTextResponse(f"[INFERENCE FAILED]: Overloaded", status_code=503)
+
     log.info(f"Invoking transformer pipeline, model: {model_name}")
     input = base64.b64encode(body).decode("ascii")
 
     try:
         future = loop.create_future()
-        queueInvoke(input, future)
-        return JSONResponse(await future, status_code=200)
+        await queueInvoke(input, future)
+
+        try:
+            result = await asyncio.wait_for(future, timeout)
+            return JSONResponse(result, status_code=200)
+        except asyncio.TimeoutError:
+            await dequeueInvoke(future)
+            raise Exception("Timeout")
     except Exception as e:
         log.warning(f"Inference failed: {e}")
         return PlainTextResponse(f"[INFERENCE FAILED]: {e}", status_code=500)
 
 
-def queueInvoke(input, future):
-    queue.put_nowait([input, future])
-    log.info(f"Queued invocation, size: {queue.qsize()} ")
+def find(arr, pred):
+    for i in range(len(arr)):
+        if pred(arr[i]):
+            return i
+    return -1
+
+
+async def queueInvoke(input, future):
+    async with lock:
+        queue.append([input, future])
+        log.info(f"Queued invocation, size: {len(queue)}")
+    event.set()
+
+
+async def dequeueInvoke(future):
+    async with lock:
+        idx = find(queue, lambda item: item[1] == future)
+        if idx >= 0:
+            del queue[idx]
+            log.info(f"Dequeued invocation, size: {len(queue)}")
 
 
 async def processQueue():
     while True:
-        head = await queue.get()
+        if not queue:
+            event.clear()
+            await event.wait()
 
-        batch = [queue.get_nowait() for _ in range(min(batch_size - 1, queue.qsize()))]
-        batch.append(head)
+        async with lock:
+            batch = [queue.pop() for _ in range(min(batch_size, len(queue)))]
 
         inputs = [item[0] for item in batch]
         log.info(f"Invoking batch inference, size: {len(inputs)}")
         outputs = inference(inputs, batch_size=len(inputs))
 
         for idx, item in enumerate(batch):
-            item[1].set_result(outputs[idx])
+            if not item[1].done():
+                item[1].set_result(outputs[idx])
 
 
 FastAPIInstrumentor.instrument_app(app)
