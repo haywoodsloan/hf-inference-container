@@ -3,6 +3,7 @@ import logging
 import os
 import asyncio
 
+from datetime import datetime
 from optimum.onnxruntime import ORTModelForImageClassification, ORTQuantizer
 from optimum.onnxruntime.configuration import (
     QuantizationConfig,
@@ -14,13 +15,15 @@ from transformers import AutoImageProcessor
 from optimum.pipelines import pipeline
 from azure.monitor.opentelemetry import configure_azure_monitor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from fastapi import FastAPI, Response, status, Body
+from fastapi import FastAPI, Response, status, Body, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 model_name = os.environ.get("MODEL_NAME")
 batch_size = int(os.environ.get("BATCH_SIZE"))
 max_queue = int(os.environ.get("MAX_QUEUE"))
+
 timeout = 30
+heartbeat = 0.5
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("app")
@@ -92,7 +95,7 @@ async def invoke_options():
 
 
 @app.post("/invoke")
-async def invoke_post(body=Body()):
+async def invoke_post(request:Request, body=Body()):
     if len(queue) >= max_queue:
         return PlainTextResponse(f"[INFERENCE FAILED]: Overloaded", status_code=503)
 
@@ -103,12 +106,21 @@ async def invoke_post(body=Body()):
         future = loop.create_future()
         await queueInvoke(input, future)
 
-        try:
-            result = await asyncio.wait_for(future, timeout)
-            return JSONResponse(result, status_code=200)
-        except asyncio.TimeoutError:
-            await dequeueInvoke(future)
-            raise Exception("Timeout")
+        start_time = datetime.now()
+        while (datetime.now() - start_time).total_seconds() < timeout:
+            if await request.is_disconnected():
+                await dequeueInvoke(future)
+                return
+
+            try:
+                shielded = asyncio.shield(future)
+                result = await asyncio.wait_for(shielded, heartbeat)
+                return JSONResponse(result, status_code=200)
+            except asyncio.TimeoutError:
+                pass
+
+        await dequeueInvoke(future)
+        raise Exception("Timeout")
     except Exception as e:
         log.warning(f"Inference failed: {e}")
         return PlainTextResponse(f"[INFERENCE FAILED]: {e}", status_code=500)
