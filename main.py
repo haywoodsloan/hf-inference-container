@@ -2,6 +2,7 @@ import base64
 import logging
 import os
 import asyncio
+import threading
 
 from datetime import datetime
 from optimum.onnxruntime import ORTModelForImageClassification, ORTQuantizer
@@ -23,7 +24,7 @@ batch_size = int(os.environ.get("BATCH_SIZE"))
 max_queue = int(os.environ.get("MAX_QUEUE"))
 
 timeout = 30
-heartbeat = 0.5
+heartbeat = 1
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("app")
@@ -84,8 +85,8 @@ app = FastAPI()
 
 # Setup for batch processing
 loop = asyncio.get_event_loop()
-event = asyncio.Event()
-lock = asyncio.Lock()
+event = threading.Event()
+lock = threading.RLock()
 queue = []
 
 
@@ -104,12 +105,12 @@ async def invoke_post(request:Request, body=Body()):
 
     try:
         future = loop.create_future()
-        await queueInvoke(input, future)
+        queueInvoke(input, future)
 
         start_time = datetime.now()
         while (datetime.now() - start_time).total_seconds() < timeout:
             if await request.is_disconnected():
-                await dequeueInvoke(future)
+                dequeueInvoke(future)
                 return
 
             try:
@@ -119,7 +120,7 @@ async def invoke_post(request:Request, body=Body()):
             except asyncio.TimeoutError:
                 pass
 
-        await dequeueInvoke(future)
+        dequeueInvoke(future)
         raise Exception("Timeout")
     except Exception as e:
         log.warning(f"Inference failed: {e}")
@@ -133,29 +134,32 @@ def find(arr, pred):
     return -1
 
 
-async def queueInvoke(input, future):
-    async with lock:
+def queueInvoke(input, future):
+    with lock:
         queue.append([input, future])
         log.info(f"Queued invocation, size: {len(queue)}")
     event.set()
 
 
-async def dequeueInvoke(future):
-    async with lock:
+def dequeueInvoke(future):
+    with lock:
         idx = find(queue, lambda item: item[1] == future)
         if idx >= 0:
             del queue[idx]
             log.info(f"Dequeued invocation, size: {len(queue)}")
 
 
-async def processQueue():
+def processQueue():
     while True:
         if not queue:
             event.clear()
-            await event.wait()
+            event.wait()
 
-        async with lock:
+        with lock:
             batch = [queue.pop() for _ in range(min(batch_size, len(queue)))]
+
+        if not batch:
+            continue
 
         inputs = [item[0] for item in batch]
         log.info(f"Invoking batch inference, size: {len(inputs)}")
@@ -167,4 +171,4 @@ async def processQueue():
 
 
 FastAPIInstrumentor.instrument_app(app)
-loop.create_task(processQueue())
+threading.Thread(target=processQueue).start()
