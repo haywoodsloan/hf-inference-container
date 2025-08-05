@@ -110,6 +110,7 @@ async def invoke_post(request: Request, body=Body()):
     try:
         while (datetime.now() - start_time).total_seconds() < timeout:
             if await request.is_disconnected():
+                log.info("Request disconnected")
                 dequeueInvoke(future)
                 return
 
@@ -120,6 +121,7 @@ async def invoke_post(request: Request, body=Body()):
             except asyncio.TimeoutError:
                 pass
 
+        log.error("Invocation timeout")
         dequeueInvoke(future)
         raise Exception("Timeout")
     except Exception as e:
