@@ -84,10 +84,10 @@ except Exception as e:
 app = FastAPI()
 
 # Setup for batch processing
+queue: list[tuple[str, asyncio.Future]] = []
 loop = asyncio.get_event_loop()
 event = threading.Event()
 lock = threading.RLock()
-queue = []
 
 
 @app.options("/invoke")
@@ -96,18 +96,18 @@ async def invoke_options():
 
 
 @app.post("/invoke")
-async def invoke_post(request:Request, body=Body()):
+async def invoke_post(request: Request, body=Body()):
     if len(queue) >= max_queue:
         return PlainTextResponse(f"[INFERENCE FAILED]: Overloaded", status_code=503)
 
     log.info(f"Invoking transformer pipeline, model: {model_name}")
     input = base64.b64encode(body).decode("ascii")
 
-    try:
-        future = loop.create_future()
-        queueInvoke(input, future)
+    future = loop.create_future()
+    queueInvoke(input, future)
 
-        start_time = datetime.now()
+    start_time = datetime.now()
+    try:
         while (datetime.now() - start_time).total_seconds() < timeout:
             if await request.is_disconnected():
                 dequeueInvoke(future)
@@ -136,7 +136,7 @@ def find(arr, pred):
 
 def queueInvoke(input, future):
     with lock:
-        queue.append([input, future])
+        queue.append((input, future))
         log.info(f"Queued invocation, size: {len(queue)}")
     event.set()
 
@@ -163,11 +163,10 @@ def processQueue():
 
         inputs = [item[0] for item in batch]
         log.info(f"Invoking batch inference, size: {len(inputs)}")
-        outputs = inference(inputs, batch_size=len(inputs))
 
+        outputs = inference(inputs, batch_size=len(inputs))
         for idx, item in enumerate(batch):
-            if not item[1].done():
-                item[1].set_result(outputs[idx])
+            item[1].set_result(outputs[idx])
 
 
 FastAPIInstrumentor.instrument_app(app)
