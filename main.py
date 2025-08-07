@@ -130,9 +130,9 @@ async def invoke_post(request: Request, body=Body()):
 
 
 def find(arr, pred):
-    for i in range(len(arr)):
-        if pred(arr[i]):
-            return i
+    for idx, val in enumerate(arr):
+        if pred(val):
+            return idx
     return -1
 
 
