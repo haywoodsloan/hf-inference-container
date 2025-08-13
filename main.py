@@ -98,6 +98,7 @@ async def invoke_options():
 @app.post("/invoke")
 async def invoke_post(request: Request, body=Body()):
     if len(queue) >= max_queue:
+        log.info("Request rejected, overloaded")
         return PlainTextResponse(f"[INFERENCE FAILED]: Overloaded", status_code=503)
 
     log.info(f"Invoking transformer pipeline, model: {model_name}")
