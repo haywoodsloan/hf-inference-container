@@ -122,9 +122,13 @@ async def invoke_post(request: Request, body=Body()):
             except asyncio.TimeoutError:
                 pass
 
-        log.error("Invocation timeout")
-        dequeueInvoke(future)
-        raise Exception("Timeout")
+        # if the request is still queued, timeout 
+        if isQueued(future):
+            log.error("Invocation timeout")
+            dequeueInvoke(future)
+            raise Exception("Timeout")
+
+        return JSONResponse(await future, status_code=200)
     except Exception as e:
         log.warning(f"Inference failed: {e}")
         return PlainTextResponse(f"[INFERENCE FAILED]: {e}", status_code=500)
@@ -135,6 +139,10 @@ def find(arr, pred):
         if pred(val):
             return idx
     return -1
+
+
+def isQueued(future):
+    return find(queue, lambda item: item[1] == future) > -1
 
 
 def queueInvoke(input, future):
