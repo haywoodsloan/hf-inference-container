@@ -3,6 +3,7 @@ import logging
 import os
 import asyncio
 import threading
+import fastapi
 
 from datetime import datetime
 from optimum.onnxruntime import ORTModelForImageClassification, ORTQuantizer
@@ -15,8 +16,7 @@ from optimum.onnxruntime.configuration import (
 from transformers import AutoImageProcessor
 from optimum.pipelines import pipeline
 from azure.monitor.opentelemetry import configure_azure_monitor
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from fastapi import FastAPI, Response, status, Body, Request
+from fastapi import Response, status, Body, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 model_name = os.environ.get("MODEL_NAME")
@@ -31,7 +31,7 @@ log = logging.getLogger("app")
 
 # Setup logging to app insights
 try:
-    configure_azure_monitor(logger_name="app")
+    configure_azure_monitor(logger_name="app", enable_live_metrics=True)
 except Exception as e:
     log.warning(f"Failed to configure azure monitoring: {e}")
 
@@ -81,7 +81,7 @@ except Exception as e:
     raise e
 
 # Initialize the server
-app = FastAPI()
+app = fastapi.FastAPI()
 
 # Setup for batch processing
 queue: list[tuple[str, asyncio.Future]] = []
@@ -122,7 +122,7 @@ async def invoke_post(request: Request, body=Body()):
             except asyncio.TimeoutError:
                 pass
 
-        # if the request is still queued, timeout 
+        # if the request is still queued, timeout
         if isQueued(future):
             log.error("Invocation timeout")
             dequeueInvoke(future)
@@ -179,6 +179,4 @@ def processQueue():
         for idx, item in enumerate(batch):
             item[1].set_result(outputs[idx])
 
-
-FastAPIInstrumentor.instrument_app(app)
 threading.Thread(target=processQueue).start()
