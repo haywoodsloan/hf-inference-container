@@ -23,7 +23,7 @@ model_name = os.environ.get("MODEL_NAME")
 batch_size = int(os.environ.get("BATCH_SIZE"))
 max_queue = int(os.environ.get("MAX_QUEUE"))
 
-timeout = 30
+timeout = 45
 heartbeat = 1
 
 logging.basicConfig(level=logging.INFO)
@@ -175,8 +175,15 @@ def processQueue():
         inputs = [item[0] for item in batch]
         log.info(f"Invoking batch inference, size: {len(inputs)}")
 
+        start_time = datetime.now()
         outputs = inference(inputs, batch_size=len(inputs))
+        end_time = datetime.now()
+
         for idx, item in enumerate(batch):
             item[1].set_result(outputs[idx])
+
+        diff = (end_time - start_time).total_seconds()
+        log.info(f"Batch inference complete, size: {len(inputs)}, time {diff} seconds")
+
 
 threading.Thread(target=processQueue).start()
